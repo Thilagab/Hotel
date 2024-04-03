@@ -42,6 +42,7 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     
     var guest: Registration?
     
+    
     var registration: Registration? {
         get{
             
@@ -65,6 +66,8 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     
     
     var roomType: Room?
+    var wifiOn: Bool = true
+    
     
     let checkInDatePickerLabelIndexPath = IndexPath(row: 0, section: 1)
     let checkOutDatePickerLabelIndexPath = IndexPath(row: 2, section: 1)
@@ -98,13 +101,7 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     override func viewDidLoad() {
       
         super.viewDidLoad()
-        
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-        
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem
-        
+         
         //Set today Date to check in date
         let midNightToday = Calendar.current.startOfDay(for: .now)
         checkInDatePicker.minimumDate = midNightToday
@@ -115,7 +112,6 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
         updateNumberOfGuest()
         updateRoomType()
         
-        //print("guest detail: ",registration!)
         if let guest = guest {
             firstNameTextField.text = guest.firstName
             lastNameTextField.text = guest.lastName
@@ -169,12 +165,15 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     }
     
     @IBAction func switchWifiChanged(_ sender: UISwitch){
-        
+   
+        wifiOn = wifiSwitch.isOn
+         updateRoomType()
+        tableView.reloadData()
     }
     
     @IBAction func cancelButtonTapped(_ sender: Any) {
+    
         dismiss(animated: true)
-        
     }
     
     @IBAction func saveButtonTapped(_ sender: Any) {
@@ -191,16 +190,13 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
         
         return addRoomTypeViewController
     }
-    // MARK: - Table view data source
     
     // MARK: - table view delegates
 
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
         tableView.deselectRow(at: indexPath, animated: true)
-        
-       
-        
+         
         if indexPath == checkInDatePickerLabelIndexPath && isCheckOutDatePickerVisible == false {
             isCheckInDatePickerVisible.toggle()
         } else if  indexPath == checkOutDatePickerLabelIndexPath && isCheckInDatePickerVisible == false {
@@ -209,24 +205,24 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
             isCheckInDatePickerVisible.toggle()
             isCheckOutDatePickerVisible.toggle()
         }
-        
-        if let fName = firstNameTextField.text,
-           let lName = lastNameTextField.text,
-           let email = emailTextField.text,
-           let checkInDate = checkInDateLabel.text,
-           let checkOutDate = checkOutDateLabel.text,
-           let adult = adultCountLabel.text,
-           let children = childrenCountLabel.text {
+    
+        if let fName = firstNameTextField.text?.isEmpty , !fName,
+           let lName = lastNameTextField.text?.isEmpty, !lName,
+           let email = emailTextField.text?.isEmpty, !email,
+           let checkInDate = checkInDateLabel.text?.isEmpty, !checkInDate,
+           let checkOutDate = checkOutDateLabel.text?.isEmpty, !checkOutDate,
+           let adult = adultCountLabel.text?.isEmpty, !adult,
+           let children = childrenCountLabel.text?.isEmpty, !children {
         
             saveButton.isEnabled = true
+        } else {
+            saveButton.isEnabled = false
         }
         
-       
+        updateRoomType()
         tableView.beginUpdates()
         tableView.endUpdates()
-        print("index path for checkinDatecheker \(indexPath)")
-       
-            print(" row selected in this name")
+            
     }
     
     override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
@@ -252,64 +248,67 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     
     func AddRoomTypeTableViewController(_ controller: AddRoomTypeTableViewController, didSelect roomType: Room) {
         self.roomType = roomType
+        
         updateRoomType()
+        
+        tableView.reloadData()
     }
     
     // MARK: - User functions
     
     func updateDateChanges(){
-        print("Checkout \(checkOutDatePicker.date)")
+        print("Checkin \(checkInDatePicker.date)")
         checkOutDatePicker.minimumDate = Calendar.current.date(byAdding: .day, value: 1, to: checkInDatePicker.date)
         
         checkInDateLabel.text = checkInDatePicker.date.formatted(date: .abbreviated, time: .omitted)
         
         checkOutDateLabel.text = checkOutDatePicker.date.formatted(date: .abbreviated, time: .omitted)
-        print("Checkout \(checkOutDatePicker.date)")
-        
+        //guest?.checkIn = registration?.checkIn
+        guest?.checkIn = checkInDatePicker.date
+        guest?.checkOut = checkOutDatePicker.date
         
     }
    
+    // Update the number of guest details
     func updateNumberOfGuest(){
+   
         adultCountLabel.text = "\(Int(numberOfAdultStepper.value))"
         childrenCountLabel.text = "\(Int(numberOfChildrenStepper.value))"
         
     }
     
-
-    func updateRoomType(){
+    // Calculate and update the room charges
+    func updateRoomType() {
+    
+        var total = 0
         if let room = roomType {
-            let roomType = room.name
-            detailRoomTypeLabel.text = roomType.rawValue
             
-            var total = 0
-            if guest?.roomType == room {
-                let checkInDate = guest?.checkIn
-                let checkOutDate = guest?.checkOut
-               
-                let totalNumberDays = Calendar.current.dateComponents([.day], from: checkInDate!, to: checkOutDate!)
-                total = room.price * (totalNumberDays.day ?? 0)
-                totalRateForRoomLabel.text = "$\(total)"
-                
-                WifiRateLabel.text = "$\(10 * (totalNumberDays.day ?? 0))"
-                if guest?.wifi != nil { WifiAvailableLabel.text = "Yes"}
-                else { WifiAvailableLabel.text = "No"}
-                TotalLabel.text = "$\(total + (10 * (totalNumberDays.day ?? 0)))"
-               
-                
-                if let checkIn = guest?.checkIn , let checkOut = guest?.checkOut {
-                    let totalNumberDays = Calendar.current.dateComponents([.day], from: checkIn, to: checkOut)
-                    print("totalNumberOfDays: \(totalNumberDays)")
-                    numberOfNightsLabel.text = "\(String(describing: totalNumberDays.day))"
-                    DateRangeForNightsLabel.text = "\((checkIn..<checkOut).formatted(date: .abbreviated, time: .omitted))"
-                }
+            detailRoomTypeLabel.text = room.name.rawValue
+            
+            guard let checkInDate = registration?.checkIn , let checkOutDate = registration?.checkOut else { return }
+            
+            let totalNumberDays = Calendar.current.dateComponents([.day], from: checkInDate, to: checkOutDate)
+            total = room.price * (totalNumberDays.day ?? 0)
+            totalRateForRoomLabel.text = "$\(total)"
+            
+            var wifiTotal = 0
+            if wifiOn {
+                WifiAvailableLabel.text = "Yes"
+                wifiTotal = 10 * (totalNumberDays.day ?? 0)
+            } else {
+                WifiAvailableLabel.text = "No"
             }
+            WifiRateLabel.text = "$\(wifiTotal)"
+     
+            TotalLabel.text = "$\(total + wifiTotal)"
+            
+            let totalDays = Calendar.current.dateComponents([.day], from: checkInDate, to: checkOutDate)
+            numberOfNightsLabel.text = "\(String(describing: totalDays.day))"
+            DateRangeForNightsLabel.text = "\((checkInDate..<checkOutDate).formatted(date: .abbreviated, time: .omitted))"
+          
             roomTypeAndPriceLabel.text = "\(room.name) @ \(room.price)/night"
             
-           
-        } else{
-            detailRoomTypeLabel.text = "Not set"
-        }
-        
+        } else {  detailRoomTypeLabel.text = "Not set" }
     }
     
     
@@ -320,7 +319,6 @@ class AddRegistrationTableViewController: UITableViewController, AddRoomTypeTabl
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         // Get the new view controller using segue.destination.
         // Pass the selected object to the new view controller.
-        print(#function,"segue returned from prepare: \(registration)")
     }
   
 
